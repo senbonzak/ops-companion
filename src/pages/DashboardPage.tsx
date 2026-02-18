@@ -1,20 +1,30 @@
 import { GitBranch, HardDrive, Bell, Activity, Rocket, Database, ShieldAlert, Clock } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { dashboardOverview, recentEvents, backupSuccessRate, alertTimeline, apmResponseTime } from "@/data/mock";
+import { useDashboard } from "@/hooks/use-api";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
-const d = dashboardOverview;
-
-const argoDonut = [
-  { name: "Healthy", value: d.argocd.healthy, color: "hsl(160, 84%, 39%)" },
-  { name: "Degraded", value: d.argocd.degraded, color: "hsl(0, 84%, 60%)" },
-  { name: "Progressing", value: d.argocd.progressing, color: "hsl(217, 91%, 60%)" },
-];
-
 export default function DashboardPage() {
+  const { data, isLoading, error } = useDashboard();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement du dashboard...</div>;
+  }
+
+  if (error || !data) {
+    return <div className="flex items-center justify-center h-64 text-destructive">Erreur de connexion au backend</div>;
+  }
+
+  const d = data.overview;
+
+  const argoDonut = [
+    { name: "Healthy", value: d.argocd.healthy, color: "hsl(160, 84%, 39%)" },
+    { name: "Degraded", value: d.argocd.degraded, color: "hsl(0, 84%, 60%)" },
+    { name: "Progressing", value: d.argocd.progressing, color: "hsl(217, 91%, 60%)" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Row 1 - Health */}
@@ -76,7 +86,7 @@ export default function DashboardPage() {
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-card-foreground">Backup Success Rate</h3>
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={backupSuccessRate}>
+            <LineChart data={data.backupSuccessRate}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,91%)" />
               <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="hsl(220,9%,46%)" />
               <YAxis tick={{ fontSize: 10 }} stroke="hsl(220,9%,46%)" domain={[0, 100]} />
@@ -90,7 +100,7 @@ export default function DashboardPage() {
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-card-foreground">Alertes (24h)</h3>
           <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={alertTimeline}>
+            <BarChart data={data.alertTimeline}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,91%)" />
               <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="hsl(220,9%,46%)" />
               <YAxis tick={{ fontSize: 10 }} stroke="hsl(220,9%,46%)" />
@@ -104,7 +114,7 @@ export default function DashboardPage() {
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold text-card-foreground">APM Response Time</h3>
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={apmResponseTime}>
+            <LineChart data={data.apmResponseTime}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,91%)" />
               <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(220,9%,46%)" />
               <YAxis tick={{ fontSize: 10 }} stroke="hsl(220,9%,46%)" unit="ms" />
@@ -120,7 +130,7 @@ export default function DashboardPage() {
       <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <h3 className="mb-4 text-sm font-semibold text-card-foreground">Activité Récente</h3>
         <div className="space-y-3">
-          {recentEvents.map((event, i) => (
+          {data.recentEvents.map((event, i) => (
             <div key={i} className="flex items-start gap-3">
               <div className="mt-0.5">
                 {event.type === "deploy" && <Rocket className="h-4 w-4 text-primary" />}

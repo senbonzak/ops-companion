@@ -1,7 +1,8 @@
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell, Menu, Search, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -9,6 +10,8 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick, title }: TopbarProps) {
+  const { username, logout } = useAuth();
+
   return (
     <header className="flex h-14 items-center gap-4 border-b border-border bg-card px-4 lg:px-6">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
@@ -33,9 +36,11 @@ export function Topbar({ onMenuClick, title }: TopbarProps) {
           </Badge>
         </Button>
 
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-          A
-        </div>
+        <span className="text-sm text-muted-foreground hidden sm:block">{username}</span>
+
+        <Button variant="ghost" size="icon" onClick={logout} title="Se deconnecter">
+          <LogOut className="h-5 w-5 text-muted-foreground" />
+        </Button>
       </div>
     </header>
   );

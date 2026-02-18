@@ -1,30 +1,65 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Save } from "lucide-react";
+import { useSettings, useUpdateSettings } from "@/hooks/use-api";
+import { Save, Loader2 } from "lucide-react";
+import type { Settings } from "@/services/api";
+
+const defaultSettings: Settings = {
+  argocdUrl: "",
+  argocdToken: "",
+  grafanaUrl: "",
+  grafanaKey: "",
+  apmEndpoint: "",
+  apmToken: "",
+  alertmanagerUrl: "",
+  alertmanagerToken: "",
+  refreshInterval: "30",
+  emailNotif: true,
+  slackNotif: false,
+  slackWebhook: "",
+};
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [settings, setSettings] = useState({
-    argocdUrl: "https://argocd.example.com",
-    argocdToken: "",
-    grafanaUrl: "https://grafana.example.com",
-    grafanaKey: "",
-    apmEndpoint: "https://apm.example.com",
-    alertmanagerUrl: "https://alertmanager.example.com",
-    refreshInterval: "30",
-    emailNotif: true,
-    slackNotif: true,
-    slackWebhook: "",
-  });
+  const { data: savedSettings, isLoading, error } = useSettings();
+  const updateMutation = useUpdateSettings();
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
 
-  const update = (key: string, value: string | boolean) => setSettings((s) => ({ ...s, [key]: value }));
+  // Charger les settings depuis le backend
+  useEffect(() => {
+    if (savedSettings) {
+      setSettings(savedSettings);
+    }
+  }, [savedSettings]);
 
-  const save = () => toast({ title: "Settings sauvegardés", description: "Configuration mise à jour avec succès." });
+  const update = (key: keyof Settings, value: string | boolean) =>
+    setSettings((s) => ({ ...s, [key]: value }));
+
+  const save = () => {
+    updateMutation.mutate(settings, {
+      onSuccess: () => {
+        toast({ title: "Settings sauvegardés", description: "Configuration mise à jour avec succès." });
+      },
+      onError: () => {
+        toast({ title: "Erreur", description: "Impossible de sauvegarder les settings.", variant: "destructive" });
+      },
+    });
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement des settings...</div>;
+  }
+
+  if (error) {
+    return <div className="flex items-center justify-center h-64 text-destructive">Erreur de connexion au backend</div>;
+  }
+
+  const isSaving = updateMutation.isPending;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -42,7 +77,9 @@ export default function SettingsPage() {
               <Label className="text-xs">Refresh Interval (seconds)</Label>
               <Input value={settings.refreshInterval} onChange={(e) => update("refreshInterval", e.target.value)} className="max-w-[200px] h-9" />
             </div>
-            <Button size="sm" className="gap-1.5" onClick={save}><Save className="h-3.5 w-3.5" /> Sauvegarder</Button>
+            <Button size="sm" className="gap-1.5" onClick={save} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Sauvegarder
+            </Button>
           </div>
         </TabsContent>
 
@@ -52,7 +89,7 @@ export default function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">URL</Label>
-                <Input value={settings.argocdUrl} onChange={(e) => update("argocdUrl", e.target.value)} className="h-9" />
+                <Input value={settings.argocdUrl} onChange={(e) => update("argocdUrl", e.target.value)} placeholder="https://argocd.example.com" className="h-9" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">API Token</Label>
@@ -66,7 +103,7 @@ export default function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">URL</Label>
-                <Input value={settings.grafanaUrl} onChange={(e) => update("grafanaUrl", e.target.value)} className="h-9" />
+                <Input value={settings.grafanaUrl} onChange={(e) => update("grafanaUrl", e.target.value)} placeholder="https://grafana.example.com" className="h-9" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">API Key</Label>
@@ -76,20 +113,36 @@ export default function SettingsPage() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
-            <h3 className="text-sm font-semibold text-card-foreground">APM & Alertmanager</h3>
+            <h3 className="text-sm font-semibold text-card-foreground">Elasticsearch (APM)</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-xs">Elastic APM Endpoint</Label>
-                <Input value={settings.apmEndpoint} onChange={(e) => update("apmEndpoint", e.target.value)} className="h-9" />
+                <Label className="text-xs">Endpoint URL</Label>
+                <Input value={settings.apmEndpoint} onChange={(e) => update("apmEndpoint", e.target.value)} placeholder="http://elk.example.lan:9200" className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Alertmanager URL</Label>
-                <Input value={settings.alertmanagerUrl} onChange={(e) => update("alertmanagerUrl", e.target.value)} className="h-9" />
+                <Label className="text-xs">Token / API Key (optionnel)</Label>
+                <Input type="password" value={settings.apmToken} onChange={(e) => update("apmToken", e.target.value)} placeholder="Laisser vide si pas d'auth" className="h-9" />
               </div>
             </div>
           </div>
 
-          <Button size="sm" className="gap-1.5" onClick={save}><Save className="h-3.5 w-3.5" /> Sauvegarder</Button>
+          <div className="rounded-lg border border-border bg-card p-5 shadow-sm space-y-4">
+            <h3 className="text-sm font-semibold text-card-foreground">Alertmanager</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">URL</Label>
+                <Input value={settings.alertmanagerUrl} onChange={(e) => update("alertmanagerUrl", e.target.value)} placeholder="https://alertmanager.example.com" className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Token (optionnel)</Label>
+                <Input type="password" value={settings.alertmanagerToken} onChange={(e) => update("alertmanagerToken", e.target.value)} placeholder="Laisser vide si pas d'auth" className="h-9" />
+              </div>
+            </div>
+          </div>
+
+          <Button size="sm" className="gap-1.5" onClick={save} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Sauvegarder
+          </Button>
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6 space-y-6">
@@ -111,7 +164,9 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-            <Button size="sm" className="gap-1.5" onClick={save}><Save className="h-3.5 w-3.5" /> Sauvegarder</Button>
+            <Button size="sm" className="gap-1.5" onClick={save} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Sauvegarder
+            </Button>
           </div>
         </TabsContent>
       </Tabs>

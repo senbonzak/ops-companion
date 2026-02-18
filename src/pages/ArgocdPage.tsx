@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { GitBranch, Search, RefreshCw, CheckCircle, AlertTriangle, XCircle, ExternalLink } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { argocdApps } from "@/data/mock";
+import { useArgocdApps } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,36 +12,48 @@ import { Label } from "@/components/ui/label";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import type { ArgocdApp } from "@/services/api";
 
 export default function ArgocdPage() {
+  const { data: argocdApps, isLoading, error } = useArgocdApps();
   const [search, setSearch] = useState("");
   const [clusterFilter, setClusterFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState("all");
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [selectedApp, setSelectedApp] = useState<typeof argocdApps[0] | null>(null);
+  const [selectedApp, setSelectedApp] = useState<ArgocdApp | null>(null);
   const { toast } = useToast();
 
-  const clusters = useMemo(() => [...new Set(argocdApps.map((a) => a.cluster))], []);
+  const apps = argocdApps ?? [];
+
+  const clusters = useMemo(() => [...new Set(apps.map((a) => a.cluster))], [apps]);
 
   const filtered = useMemo(() => {
-    return argocdApps.filter((app) => {
+    return apps.filter((app) => {
       if (search && !app.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (clusterFilter !== "all" && app.cluster !== clusterFilter) return false;
       if (healthFilter !== "all" && app.health !== healthFilter) return false;
       return true;
     });
-  }, [search, clusterFilter, healthFilter]);
+  }, [apps, search, clusterFilter, healthFilter]);
 
   const stats = useMemo(() => ({
-    total: argocdApps.length,
-    healthy: argocdApps.filter((a) => a.health === "Healthy").length,
-    degraded: argocdApps.filter((a) => a.health === "Degraded").length,
-    outOfSync: argocdApps.filter((a) => a.sync === "OutOfSync").length,
-  }), []);
+    total: apps.length,
+    healthy: apps.filter((a) => a.health === "Healthy").length,
+    degraded: apps.filter((a) => a.health === "Degraded").length,
+    outOfSync: apps.filter((a) => a.sync === "OutOfSync").length,
+  }), [apps]);
 
   const handleSync = (appName: string) => {
     toast({ title: "Sync déclenché", description: `Synchronisation de ${appName} en cours...` });
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement des applications ArgoCD...</div>;
+  }
+
+  if (error) {
+    return <div className="flex items-center justify-center h-64 text-destructive">Erreur de connexion au backend</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -100,7 +112,7 @@ export default function ArgocdPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((app, i) => (
+              {filtered.map((app) => (
                 <tr
                   key={app.name}
                   className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"

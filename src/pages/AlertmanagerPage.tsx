@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Bell, Send, Clock } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { activeAlerts, dashboardOverview } from "@/data/mock";
+import { useAlerts } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AlertmanagerPage() {
   const { toast } = useToast();
+  const { data, isLoading, error } = useAlerts();
   const [alertType, setAlertType] = useState("warning");
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
@@ -23,6 +24,14 @@ export default function AlertmanagerPage() {
     setAlertTitle("");
     setAlertMessage("");
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement des alertes...</div>;
+  }
+
+  if (error || !data) {
+    return <div className="flex items-center justify-center h-64 text-destructive">Erreur de connexion au backend</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -68,7 +77,7 @@ export default function AlertmanagerPage() {
 
       {/* Active Alerts */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Alertes Actives ({activeAlerts.length})</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Alertes Actives ({data.alerts.length})</h3>
         <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -83,7 +92,7 @@ export default function AlertmanagerPage() {
                 </tr>
               </thead>
               <tbody>
-                {activeAlerts.map((a) => (
+                {data.alerts.map((a) => (
                   <tr key={a.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3"><StatusBadge status={a.severity} /></td>
                     <td className="px-4 py-3 font-medium text-card-foreground">{a.name}</td>

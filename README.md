@@ -1,73 +1,146 @@
-# Welcome to your Lovable project
+# DevOps Monitoring - Frontend
 
-## Project info
+Interface React + TypeScript pour la plateforme DevOps Monitoring.
+Consomme l'API backend pour afficher l'etat des services ArgoCD, Alertmanager, Grafana et Elastic APM.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Prerequisites
 
-## How can I edit this code?
+- Node.js >= 18
+- npm >= 9
+- Backend demarre sur `http://localhost:3001` (voir `backend/README.md`)
 
-There are several ways of editing your application.
+## Installation
 
-**Use Lovable**
+```bash
+cd front
+npm install
+```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Demarrage
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+L'application demarre sur `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+> Le backend doit tourner en parallele sur le port 3001 pour que les donnees s'affichent.
 
-**Use GitHub Codespaces**
+## Scripts
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Commande            | Description                          |
+|---------------------|--------------------------------------|
+| `npm run dev`       | Serveur dev Vite (port 8080)         |
+| `npm run build`     | Build de production                  |
+| `npm run preview`   | Previsualiser le build               |
+| `npm run lint`      | Linter ESLint                        |
+| `npm run test`      | Lancer les tests Vitest              |
+| `npm run test:watch`| Tests en mode watch                  |
 
-## What technologies are used for this project?
+## Authentification
 
-This project is built with:
+L'application est protegee par un systeme de login (JWT).
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Au premier acces, l'utilisateur est redirige vers `/login`
+- Apres connexion, le token JWT est stocke dans `localStorage`
+- Le token est envoye automatiquement sur chaque appel API (`Authorization: Bearer`)
+- Si le token expire (24h), l'utilisateur est deconnecte automatiquement
+- Un bouton **Logout** est disponible dans la topbar
 
-## How can I deploy this project?
+**Credentials par defaut** : `admin` / `admin` (configurable dans le `.env` du backend).
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Pages
 
-## Can I connect a custom domain to my Lovable project?
+| Route             | Page             | Description                                  | Auth    |
+|-------------------|------------------|----------------------------------------------|---------|
+| `/login`          | Login            | Page de connexion                            | Public  |
+| `/`               | Dashboard        | Vue d'ensemble (stats, charts, activite)     | Protege |
+| `/argocd`         | ArgoCD           | Liste des apps, filtres, sync, detail modal  | Protege |
+| `/backups`        | Backups          | CNPG Postgres + Elasticsearch snapshots      | Protege |
+| `/alertmanager`   | Alertmanager     | Alertes actives, envoi d'alertes de test     | Protege |
+| `/apm`            | APM              | Services instrumentes, metriques de latence  | Protege |
+| `/grafana`        | Grafana          | Templates de dashboards deployes             | Protege |
+| `/settings`       | Settings         | Configuration des integrations et notifs     | Protege |
 
-Yes, you can!
+## Architecture
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+front/src/
+├── components/
+│   ├── ui/               # Composants shadcn/ui (Button, Input, Dialog...)
+│   ├── AppSidebar.tsx    # Sidebar de navigation
+│   ├── StatCard.tsx      # Carte de statistique
+│   └── StatusBadge.tsx   # Badge de statut (Healthy, Degraded...)
+├── hooks/
+│   ├── use-api.ts        # Hooks React Query (useDashboard, useArgocdApps...)
+│   ├── use-auth.tsx      # AuthContext, AuthProvider, useAuth hook
+│   ├── use-toast.ts      # Hook pour les notifications toast
+│   └── use-mobile.tsx    # Detection mobile
+├── pages/
+│   ├── LoginPage.tsx     # Page de connexion
+│   ├── DashboardPage.tsx
+│   ├── ArgocdPage.tsx
+│   ├── BackupsPage.tsx
+│   ├── AlertmanagerPage.tsx
+│   ├── ApmPage.tsx
+│   ├── GrafanaPage.tsx
+│   └── SettingsPage.tsx
+├── services/
+│   ├── api.ts            # Client API + types TypeScript
+│   └── auth.ts           # Service auth (login, logout, token)
+├── data/
+│   └── mock.ts           # Donnees mock (plus utilisees, gardees en reference)
+├── App.tsx               # Router + providers
+└── main.tsx              # Point d'entree
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Connexion au backend
+
+L'URL du backend est configuree via la variable d'environnement `VITE_API_URL`.
+
+### Configuration
+
+```bash
+# 1. Copier le template
+cp .env.example .env              # pour le dev local
+cp .env.example .env.production   # pour le build de production
+
+# 2. Modifier VITE_API_URL dans le fichier copie
+# .env             → http://localhost:3001/api
+# .env.production  → https://votre-backend.example.com/api
+```
+
+> **IMPORTANT** : `VITE_API_URL` est injectee au **build time** par Vite. Si vous changez cette valeur, vous devez **rebuilder** le frontend (`npm run build`).
+
+| Fichier            | Role                          | Git     |
+|--------------------|-------------------------------|---------|
+| `.env.example`     | Template (reference)          | Commite |
+| `.env`             | Dev local (`npm run dev`)     | Ignore  |
+| `.env.production`  | Build prod (`npm run build`)  | Ignore  |
+
+### Hooks React Query
+
+Chaque page utilise un hook qui fetch et cache les donnees automatiquement :
+
+| Hook              | Endpoint                  | Refresh     |
+|-------------------|---------------------------|-------------|
+| `useDashboard()`  | `GET /api/dashboard`      | 30 secondes |
+| `useArgocdApps()` | `GET /api/argocd/apps`    | 30 secondes |
+| `useBackups()`    | `GET /api/backups`        | 60 secondes |
+| `useAlerts()`     | `GET /api/alerts`         | 15 secondes |
+| `useGrafana()`    | `GET /api/grafana/dashboards` | 60 secondes |
+| `useSettings()`   | `GET /api/settings`       | Manuel      |
+
+## Stack technique
+
+| Technologie        | Usage                              |
+|--------------------|------------------------------------|
+| React 18           | Framework UI                       |
+| TypeScript         | Typage statique                    |
+| Vite               | Bundler + dev server               |
+| TanStack Query     | Data fetching + cache              |
+| React Router v6    | Routing                            |
+| shadcn/ui + Radix  | Composants UI                      |
+| Tailwind CSS       | Styles                             |
+| Recharts           | Graphiques (donut, line, bar)      |
+| date-fns           | Formatage des dates                |
